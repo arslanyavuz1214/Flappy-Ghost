@@ -1,0 +1,389 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ghost Flight 👻</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #090511;
+  color: white;
+  font-family: system-ui, sans-serif;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+}
+.game {
+  position: relative;
+  width: min(100vw, 440px);
+  height: min(100dvh, 760px);
+  min-height: 400px;
+  overflow: hidden;
+  background: #10091f;
+  border: 1px solid #6334a4;
+  border-radius: 18px;
+  box-shadow: 0 0 45px #792aff30;
+}
+canvas { width: 100%; height: 100%; display: block; }
+.hud {
+  position: absolute; top: 20px; left: 0; right: 0;
+  text-align: center; pointer-events: none;
+}
+h1 {
+  margin: 0; font-size: 25px; letter-spacing: 5px;
+  color: #e9d5ff; text-shadow: 0 0 18px #a855f7;
+}
+.score { font-size: 36px; font-weight: 800; margin-top: 8px; }
+.best { font-size: 12px; color: #c4b5fd; letter-spacing: 2px; }
+.overlay {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 25px;
+  background: #09051170;
+}
+.panel {
+  width: 100%; padding: 28px 20px;
+  border: 1px solid #8b5cf6;
+  border-radius: 22px;
+  background: #160d29eF;
+  box-shadow: 0 0 35px #7c3aed25;
+}
+.panel h2 { font-size: 30px; margin: 0 0 12px; }
+.panel p { color: #d8c9f5; line-height: 1.7; font-size: 14px; }
+button {
+  border: 0; border-radius: 12px; padding: 14px 30px;
+  background: linear-gradient(110deg,#9333ea,#6d28d9);
+  color: white; font-weight: 800; font-size: 16px;
+  cursor: pointer; box-shadow: 0 0 22px #9333ea55;
+}
+button:hover { filter: brightness(1.2); }
+.hidden { display: none; }
+.hint {
+  position: absolute; bottom: 16px; width: 100%;
+  text-align: center; font-size: 11px;
+  letter-spacing: 1px; color: #c4b5fd99;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<div class="game" id="game">
+  <canvas id="canvas"></canvas>
+  <div class="hud">
+    <h1>GHOST FLIGHT</h1>
+    <div class="score" id="score">0</div>
+    <div class="best">BEST: <span id="best">0</span></div>
+  </div>
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <div style="font-size:60px">👻</div>
+      <h2 id="title">Ghost Flight</h2>
+      <p id="message">
+        Fliege durch die Schatten.<br>
+        Weiche den lila Hindernissen aus<br>
+        und schaffe deinen Highscore!
+      </p>
+      <button id="start">SPIELEN</button>
+      <p style="font-size:11px;margin-bottom:0">
+        LEERTASTE · KLICKEN · TIPpen
+      </p>
+    </div>
+  </div>
+  <div class="hint">FLAP TO SURVIVE · ENDLESS NIGHT</div>
+</div>
+
+<script>
+(() => {
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const game = document.getElementById('game');
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('start');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const titleEl = document.getElementById('title');
+const messageEl = document.getElementById('message');
+
+let W = 440, H = 760, dpr = 1;
+let state = 'ready', score = 0;
+let best = 0;
+try { best = Number(localStorage.getItem('ghostFlightBest')) || 0; }
+catch(e) {}
+bestEl.textContent = best;
+
+const ghost = { x: 95, y: 300, vy: 0, r: 17 };
+let pipes = [], particles = [], stars = [];
+let spawnTimer = 0, lastTime = 0, world = 0;
+
+function resize() {
+  const rect = game.getBoundingClientRect();
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = rect.width; H = rect.height;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  stars = Array.from({length: 75}, () => ({
+    x: Math.random()*W, y: Math.random()*H,
+    r: Math.random()*1.5+.3, a: Math.random()*.7+.2
+  }));
+  if (state === 'ready') ghost.y = H*.43;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function reset() {
+  score = 0;
+  pipes = [];
+  particles = [];
+  spawnTimer = 0;
+  world = 0;
+  ghost.y = H*.43;
+  ghost.vy = 0;
+  scoreEl.textContent = '0';
+}
+
+function flap() {
+  ghost.vy = -5.5;
+  for (let i=0; i<5; i++) particles.push({
+    x: ghost.x-8, y: ghost.y+8,
+    vx: -Math.random()*2-1, vy: Math.random()*2,
+    life: 1, size: Math.random()*4+2
+  });
+}
+
+function begin() {
+  reset();
+  state = 'playing';
+  overlay.classList.add('hidden');
+  flap();
+}
+
+function die() {
+  if (state !== 'playing') return;
+  state = 'over';
+  if (score > best) {
+    best = score;
+    bestEl.textContent = best;
+    try { localStorage.setItem('ghostFlightBest', best); } catch(e) {}
+  }
+  titleEl.textContent = 'GAME OVER';
+  messageEl.innerHTML =
+    `Du hast <b>${score}</b> Schatten durchquert.<br>` +
+    `Dein Rekord: <b>${best}</b><br><br>Bereit für einen neuen Versuch?`;
+  startBtn.textContent = 'NOCHMAL SPIELEN';
+  overlay.classList.remove('hidden');
+}
+
+function action(e) {
+  if (e) e.preventDefault();
+  if (state === 'ready' || state === 'over') {
+    begin();
+  } else if (state === 'playing') {
+    flap();
+  }
+}
+game.addEventListener('pointerdown', action);
+window.addEventListener('keydown', e => {
+  if (['Space','ArrowUp','KeyW'].includes(e.code)) action(e);
+});
+startBtn.addEventListener('pointerdown', e => e.stopPropagation());
+
+function addPipe() {
+  const gap = Math.max(142, Math.min(178, H*.225));
+  const margin = 95;
+  const center = margin + Math.random()*(H-margin*2);
+  pipes.push({
+    x: W+35, gapY: center, gap,
+    passed: false,
+    width: 61
+  });
+}
+
+function roundedRect(x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,r);
+}
+
+function drawPipe(p) {
+  const topH = p.gapY-p.gap/2;
+  const bottomY = p.gapY+p.gap/2;
+  const grad = ctx.createLinearGradient(p.x,0,p.x+p.width,0);
+  grad.addColorStop(0,'#301454');
+  grad.addColorStop(.5,'#702bc0');
+  grad.addColorStop(1,'#321459');
+
+  ctx.save();
+  ctx.shadowColor = '#a855f7';
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = '#c084fc';
+  ctx.lineWidth = 1.5;
+
+  roundedRect(p.x, -8, p.width, topH+8, 7);
+  ctx.fill(); ctx.stroke();
+  roundedRect(p.x-5, topH-19, p.width+10, 19, 5);
+  ctx.fill(); ctx.stroke();
+
+  roundedRect(p.x, bottomY, p.width, H-bottomY+10, 7);
+  ctx.fill(); ctx.stroke();
+  roundedRect(p.x-5, bottomY, p.width+10, 19, 5);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = '#d8b4fe';
+  ctx.fillRect(p.x+12, 0, 2, Math.max(0,topH-22));
+  ctx.fillRect(p.x+12, bottomY+22, 2, Math.max(0,H-bottomY-22));
+}
+
+function drawGhost() {
+  ctx.save();
+  ctx.translate(ghost.x, ghost.y);
+  ctx.rotate(Math.max(-.35,Math.min(.7,ghost.vy*.055)));
+  ctx.shadowColor = '#c084fc';
+  ctx.shadowBlur = 24;
+
+  // Geistkörper
+  ctx.fillStyle = '#f5edff';
+  ctx.beginPath();
+  ctx.moveTo(-17,-12);
+  ctx.quadraticCurveTo(-14,-23,0,-22);
+  ctx.quadraticCurveTo(17,-20,18,-4);
+  ctx.lineTo(18,13);
+  ctx.quadraticCurveTo(12,8,7,15);
+  ctx.quadraticCurveTo(2,21,-4,14);
+  ctx.quadraticCurveTo(-11,8,-18,15);
+  ctx.lineTo(-18,-7);
+  ctx.quadraticCurveTo(-19,-10,-17,-12);
+  ctx.fill();
+
+  // Augen
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#29133f';
+  ctx.beginPath();
+  ctx.ellipse(-7,-5,3,5,0,0,Math.PI*2);
+  ctx.ellipse(7,-5,3,5,0,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#c084fc';
+  ctx.beginPath();
+  ctx.arc(-7,-6,1.2,0,Math.PI*2);
+  ctx.arc(7,-6,1.2,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBackground(dt) {
+  const bg = ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#0b0616');
+  bg.addColorStop(.55,'#170a2b');
+  bg.addColorStop(1,'#080511');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H);
+
+  // Ferne Monde
+  ctx.save();
+  ctx.globalAlpha=.12;
+  ctx.fillStyle='#c084fc';
+  ctx.beginPath();
+  ctx.arc(W*.78,H*.25,48,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  for (const s of stars) {
+    s.x -= (state==='playing'?dt*.012:0);
+    if (s.x < 0) s.x = W;
+    ctx.globalAlpha = s.a;
+    ctx.fillStyle = '#e9d5ff';
+    ctx.fillRect(s.x,s.y,s.r,s.r);
+  }
+  ctx.globalAlpha=1;
+
+  // Schattenberge im Hintergrund
+  for (let layer=0;layer<2;layer++) {
+    ctx.fillStyle = layer===0 ? '#1d1034' : '#120a23';
+    ctx.beginPath();
+    ctx.moveTo(0,H);
+    for (let x=0;x<=W+10;x+=10) {
+      const y=H*.83 + Math.sin((x+world*.15)/(35+layer*20))*18
+        + Math.sin(x/17+layer)*10;
+      ctx.lineTo(x,y+layer*20);
+    }
+    ctx.lineTo(W,H);
+    ctx.fill();
+  }
+}
+
+function update(dt) {
+  if (state === 'playing') {
+    world += dt*.045;
+    ghost.vy += .27*(dt/16.67);
+    ghost.vy = Math.min(ghost.vy, 7.5);
+    ghost.y += ghost.vy*(dt/16.67);
+
+    spawnTimer += dt;
+    if (spawnTimer > 1450) {
+      addPipe();
+      spawnTimer = 0;
+    }
+
+    for (const p of pipes) {
+      p.x -= 2.7*(dt/16.67);
+      if (!p.passed && p.x+p.width < ghost.x) {
+        p.passed=true;
+        score++;
+        scoreEl.textContent=score;
+      }
+
+      const overlapsX = ghost.x+ghost.r > p.x &&
+        ghost.x-ghost.r < p.x+p.width;
+      if (overlapsX &&
+          (ghost.y-ghost.r < p.gapY-p.gap/2+12 ||
+           ghost.y+ghost.r > p.gapY+p.gap/2-12)) die();
+    }
+
+    pipes = pipes.filter(p=>p.x+p.width > -15);
+    if (ghost.y-ghost.r < 0 || ghost.y+ghost.r > H) die();
+  }
+
+  for (const p of particles) {
+    p.x+=p.vx; p.y+=p.vy;
+    p.life-=.025*(dt/16.67);
+  }
+  particles=particles.filter(p=>p.life>0);
+}
+
+function render(dt) {
+  drawBackground(dt);
+  for (const p of pipes) drawPipe(p);
+
+  for (const p of particles) {
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle='#c084fc';
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  drawGhost();
+
+  if (state==='ready') {
+    ghost.y=H*.43+Math.sin(performance.now()*.003)*8;
+  }
+}
+
+function loop(time) {
+  const dt=Math.min(time-lastTime||16,32);
+  lastTime=time;
+  update(dt);
+  render(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
