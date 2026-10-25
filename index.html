@@ -147,7 +147,7 @@ function reset() {
 }
 
 function flap() {
-  ghost.vy = -6.0;
+  ghost.vy = -8.5;
   for (let i=0; i<5; i++) particles.push({
     x: ghost.x-8, y: ghost.y+8,
     vx: -Math.random()*2-1, vy: Math.random()*2,
@@ -193,7 +193,7 @@ window.addEventListener('keydown', e => {
 startBtn.addEventListener('pointerdown', e => e.stopPropagation());
 
 function addPipe() {
-  const gap = Math.min(H - 130, Math.max(235, Math.min(275, H*.36)));
+  const gap = Math.min(H - 130, Math.max(175, Math.min(195, H*.27)));
   // Genug Platz an beiden Enden: Die Lücke darf nie halb außerhalb des Spielfelds liegen.
   const margin = gap/2 + ghost.r + 20;
   const center = margin + Math.random()*Math.max(0, H-margin*2);
@@ -320,12 +320,12 @@ function drawBackground(dt) {
 function update(dt) {
   if (state === 'playing') {
     world += dt*.045;
-    ghost.vy += .20*(dt/16.67);
-    ghost.vy = Math.min(ghost.vy, 7.5);
+    ghost.vy += .30*(dt/16.67);
+    ghost.vy = Math.min(ghost.vy, 10.5);
     ghost.y += ghost.vy*(dt/16.67);
 
     spawnTimer += dt;
-    if (spawnTimer > 2200) {
+    if (spawnTimer > 2900) {
       addPipe();
       spawnTimer = 0;
     }
