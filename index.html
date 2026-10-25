@@ -147,7 +147,7 @@ function reset() {
 }
 
 function flap() {
-  ghost.vy = -8.5;
+  ghost.vy = -11.5;
   for (let i=0; i<5; i++) particles.push({
     x: ghost.x-8, y: ghost.y+8,
     vx: -Math.random()*2-1, vy: Math.random()*2,
@@ -320,8 +320,8 @@ function drawBackground(dt) {
 function update(dt) {
   if (state === 'playing') {
     world += dt*.045;
-    ghost.vy += .30*(dt/16.67);
-    ghost.vy = Math.min(ghost.vy, 10.5);
+    ghost.vy += .42*(dt/16.67);
+    ghost.vy = Math.min(ghost.vy, 13.5);
     ghost.y += ghost.vy*(dt/16.67);
 
     spawnTimer += dt;
