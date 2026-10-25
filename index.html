@@ -326,7 +326,7 @@ function update(dt) {
     ghost.y += ghost.vy*(dt/16.67);
 
     spawnTimer += dt;
-    if (spawnTimer > 2200) {
+    if (spawnTimer >= 1000) {
       addPipe();
       spawnTimer = 0;
     }
