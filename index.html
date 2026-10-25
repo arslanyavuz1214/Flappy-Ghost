@@ -147,7 +147,7 @@ function reset() {
 }
 
 function flap() {
-  ghost.vy = -7;
+  ghost.vy = -7.3;
   for (let i=0; i<5; i++) particles.push({
     x: ghost.x-8, y: ghost.y+8,
     vx: -Math.random()*2-1, vy: Math.random()*2,
