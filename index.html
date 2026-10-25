@@ -147,6 +147,7 @@ function reset() {
 }
 
 function flap() {
+  // Sprungkraft: exakt -8
   ghost.vy = -8;
   for (let i=0; i<5; i++) particles.push({
     x: ghost.x-8, y: ghost.y+8,
