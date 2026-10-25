@@ -326,13 +326,13 @@ function update(dt) {
     ghost.y += ghost.vy*(dt/16.67);
 
     spawnTimer += dt;
-    if (spawnTimer > 2900) {
+    if (spawnTimer > 2200) {
       addPipe();
       spawnTimer = 0;
     }
 
     for (const p of pipes) {
-      p.x -= 5.5*(dt/16.67);
+      p.x -= 6.5*(dt/16.67);
       if (!p.passed && p.x+p.width < ghost.x) {
         p.passed=true;
         score++;
